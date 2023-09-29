@@ -1,121 +1,120 @@
 import "./App.css";
-import { OrbitControls, Text } from "@react-three/drei";
+import { OrbitControls } from "@react-three/drei";
 import { Canvas } from '@react-three/fiber';
-import TorusList from './components/TorusList';
 import { useDispatch } from "react-redux";
 import { AppDispatch } from "./redux/store";
-import { initHandle, pushTorusInfo } from "./redux/features/torusInfo-slice";
+import { pushTorusInfo, resetHandle } from "./redux/features/torusInfo-slice";
+import { v4 as uuidv4 } from 'uuid';
+import { Ring, positionArray } from "./torusPosition";
+import { getCurrentTime } from "./redux/features/currentTime-slice";
+import { getUpdateTime } from "./redux/features/updateTime-slice";
+import { commentArray } from "./message";
+import { getComment } from "./redux/features/comment-slice";
+import TorusList from './components/TorusList';
+import DisplayInfo from "./components/DisplayInfo";
+
 
 function App() {
+  let torusScale     : number;
+  let shufflePosition: Ring[];
+  let randomPosition : Ring | undefined;
+  let num = 0;
+
   const dispatch = useDispatch<AppDispatch>();
 
-  let pX  = 0;    //横の位置
-  let pY  = 3;    //縦の位置
-  let rX: number; //Xのrotate
-  let rY: number; //Yのrotate
-  let torusScale = 0.08; //torusの大きさ
-  let num = 1;
+  //配列内をシャッフルする
+  function shuffleArray(sourcceArray: Ring[]) {
+    const array = sourcceArray.concat();
+    const arrayLength = array.length;
 
-  const addTorus = () => { 
-    const color = 0xffffff * Math.random();
-
-    if (num % 2 == 0) {                   //偶数
-      rX = Math.floor(Math.random());
-      rY = Math.floor(Math.random());
-    } else {                              //奇数
-      rX = Math.floor(Math.random() * 2); 
-      rY = Math.floor(Math.random() * 5);
-    }    
-
-    //Dの文字
-    if (num <= 10) {
-      pX = -7;   
-      pY -= 0.6; 
-    } else if (num == 11) {  
-      pX += 0.5; 
-      pY += 5.5;
-    } else if (num >= 12 && num <= 15) {
-      pX += 0.5;
-    } else if (num >= 16 && num <= 20) {
-      pX += 0.3;
-      pY -= 0.4;
-    } else if (num >= 21 && num <= 22) {
-      pY -= 0.6;
-    } else if (num >= 23 && num <= 28) {
-      pX -= 0.2;
-      pY -= 0.4;
-    } else if (num >= 29 && num <= 33) {
-      pX -= 0.5;
-
-    //Eの文字
-    } else if (num == 34) { 
-      pX = 0;
-      pY = 2.4;
-    } else if (num <= 43) {
-      pX = 0;
-      pY -= 0.6;
-    } else if (num == 44) {
-      pX = 0.5;
-      pY = 2.4;
-    } else if (num >= 45 && num <= 49) {
-      pX += 0.5;
-      pY = 2.4; 
-    } else if (num == 50) {
-      pX = 0.5;
-      pY = -0.4;
-    } else if (num >= 51 && num <= 55) {
-      pX += 0.5;
-      pY = -0.4;
-    } else if (num == 56) {
-      pX = 0.5;
-      pY = -3.4;
-    } else if (num >= 57 && num <= 61) {
-      pX += 0.5;
-      pY = -3.2;
-
-    //Iの文字
-    } else if (num == 62) {
-      pX = 7;
-      pY = 2.5;
-    } else if (num >= 63 && num <= 71) {
-      pX = 7;
-      pY -= 0.65;
-    } else {
-      dispatch(initHandle());
-      num = 1;
-      pX = -7;   
-      pY = 2.4; 
+    for (let i = arrayLength - 1; i >= 0; i--) {
+        const randomIndex = Math.floor(Math.random() * (i + 1));
+        [array[i], array[randomIndex]] = [array[randomIndex], array[i]];
     }
-    num++;
+    return array;
+  }
+  shufflePosition = shuffleArray(positionArray);
 
+
+  //写真をとったら（仮clickアクション）
+  function addTorus() { 
+    console.log(num + 1);
+    
+    torusScale = 0.08;
+    const color = `hsl(${Math.floor(Math.random() * 361)}, 100%, 50%)`;
+
+    randomPosition = shufflePosition[num];
+
+    if (num == 70) {
+      console.log("reset");
+      dispatch(resetHandle());
+      shufflePosition = shuffleArray(positionArray);
+      num = 0;
+      randomPosition = shufflePosition[num];
+    } 
+
+    
+    //リング情報をstoreへ送る
     dispatch(pushTorusInfo(
       {
-        id: num,
-        color: color,
-        rotateX: rX,
-        rotateY: rY,
-        positionX: pX,
-        positionY: pY,
-        scale: torusScale, 
+        id:        uuidv4(),
+        color:     color,
+        rotateX:   randomPosition.rotateX,
+        rotateY:   randomPosition.rotateY,
+        positionX: randomPosition.positionX, 
+        positionY: randomPosition.positionY,
+        scale:     torusScale,
       }
     ));
+    
+
+    //コメント情報を取り出してstoreへ送る
+    const pop = commentArray[num];
+    dispatch(getComment(pop));
+    num++;
+
+
+    //最終更新日時の情報をstoreへ送る
+    const date         = new Date();
+    const year         = date.getFullYear();
+    const month        = date.getMonth() + 1;
+    const day          = date.getDate();
+    const hour         = date.getHours().toString().padStart(2, "0");
+    const minute       = date.getMinutes().toString().padStart(2, "0");
+    const second       = date.getSeconds().toString().padStart(2, "0");
+
+    dispatch(getUpdateTime(`最終更新日時: ${year}.${month}.${day}.${hour}.${minute}.${second}`));
   };
 
+
+  //現在時間をstoreへ送る
+  setInterval(() => {
+    const date         = new Date();
+    const month        = date.getMonth() + 1;
+    const day          = date.getDate();
+    const hour         = date.getHours().toString().padStart(2, "0");
+    const minute       = date.getMinutes().toString().padStart(2, "0");
+    const second       = date.getSeconds().toString().padStart(2, "0");
+    const dayOfTheWeek = date.getDay();
+    const weekName     = ['日', '月', '火', '水', '木', '金', '土'];
+
+    dispatch(getCurrentTime(`${month}/${day}(${weekName[dayOfTheWeek]}) ${hour}:${minute}:${second}`));
+  }, 1000);
+
+
   return(
-    <div id='canvas'>
-      <Canvas camera={{ position: [0,0,10] }}>
-          <TorusList />
-          <axesHelper scale={10}/>
-          <ambientLight intensity={0.5} />
-          <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} />
-          <pointLight position={[-10, -10, -10]} />
-          <OrbitControls/>
-          <Text position={[0, 5, 0]} >
-            React Three Fiber
-          </Text>
-      </Canvas>
-      <button onClick={addTorus}>追加</button>
-    </div>
+    <>
+      <div id='canvas'>
+        <Canvas camera={{ position: [0,0,10] }} >
+          <color attach="background" args={[0xff000000]} /> {/*背景色*/}
+            <TorusList />
+            <OrbitControls />
+        </Canvas>
+        <button onClick={addTorus}>追加</button>
+      </div>
+
+      <DisplayInfo />
+    </>
   );
 }
 export default App;

@@ -1,25 +1,28 @@
 import { createSlice } from "@reduxjs/toolkit";
 
 export type TorusInfo = {
-    id: number;
-    color: number, 
-    rotateX: number, 
-    rotateY: number,
+    id:        number;
+    color:     number, 
+    rotateX:   number, 
+    rotateY:   number,
     positionX: number,
     positionY: number,
-    scale: number,
+    scale:     number,
 }
 
 const torusStore: TorusInfo[] = [];
 
 export const torusInfo = createSlice({
     name: "torusDetails",
-    initialState: { value: torusStore },
+    initialState: torusStore,
     reducers: {
-        pushTorusInfo: ((state, action) => { state.value.push(action.payload); console.log(torusInfo)}),
-        initHandle: () => { return { value: torusStore }},
-    }
+        pushTorusInfo: ((state, action) => { state.push(action.payload) }),
+        resetHandle: () => { 
+            console.log("resetしました");
+            return torusStore;
+        },
+    },
 });
 
-export const { pushTorusInfo, initHandle } = torusInfo.actions;
+export const { pushTorusInfo, resetHandle } = torusInfo.actions;
 export default torusInfo.reducer;
